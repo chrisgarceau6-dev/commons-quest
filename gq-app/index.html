@@ -1,7 +1,12 @@
 <meta charset="utf-8">
 <title>Gainz Quest</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#241a4d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Gainz Quest">
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
@@ -186,8 +191,9 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 const fmt=n=>Math.round(n||0).toLocaleString();
 const f1=n=>(Math.round((n||0)*10)/10).toLocaleString();
 const pad=n=>String(n).padStart(2,"0");
-const dayId=(d=new Date(Date.now()-4*3600e3))=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
-const menuKey=(d=new Date())=>pad(d.getMonth()+1)+"/"+pad(d.getDate())+"/"+d.getFullYear();
+const questNow=()=>new Date(Date.now()-4*3600e3);
+const dayId=(d=questNow())=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const menuKey=(d=questNow())=>pad(d.getMonth()+1)+"/"+pad(d.getDate())+"/"+d.getFullYear();
 const fromId=id=>{const [y,m,d]=id.split("-").map(Number);return new Date(y,m-1,d)};
 const niceDay=id=>fromId(id).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
 const MEALS={B:"Breakfast",L:"Lunch",D:"Dinner",N:"Late Night",G:"Grab 'n Go"};
@@ -539,4 +545,13 @@ Promise.all([fetch("menu.json").then(r=>r.json()),fetch("spr.json").then(r=>r.js
   meta("goals",d=>{GOALS={...G0,...d}},()=>false);
   meta("faves",d=>{if(Array.isArray(d.keys))FAVES=d.keys},()=>FAVES.length>0);
 })();
+</script>
+<script>
+/* Register the offline cache. Served over file:// or an unsupported browser
+   this is a no-op, so the app keeps working exactly as before. */
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
 </script>

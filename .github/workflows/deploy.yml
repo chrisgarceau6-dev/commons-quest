@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Called by refresh-menus.yml after it commits a fresh menu.json, because a
+  # push made with GITHUB_TOKEN does not itself trigger this workflow.
+  workflow_call:
 
 permissions:
   contents: read

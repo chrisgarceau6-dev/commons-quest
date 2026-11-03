@@ -1,0 +1,55 @@
+name: Refresh menus
+
+# UMass publishes menus about two weeks out, so a nightly rebuild keeps the
+# rolling window from ever running dry. 09:30 UTC is 04:30 EST / 05:30 EDT,
+# just past the app's 4am dining-day rollover.
+on:
+  schedule:
+    - cron: '30 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch menus from UMass Dining
+        run: python scripts/fetch_menus.py
+
+      - name: Smoke-test the rebuilt bundle
+        run: python scripts/smoke_test.py
+
+      - name: Commit if the menu changed
+        id: commit
+        run: |
+          if git diff --quiet -- gq-app/menu.json; then
+            echo "menu.json unchanged"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add gq-app/menu.json
+          git commit -m "Refresh menus: $(python -c "import json;d=json.load(open('gq-app/menu.json'));print(d['dates'][0],'->',d['dates'][-1])")"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+  # A push made with GITHUB_TOKEN will not trigger deploy.yml on its own.
+  deploy:
+    needs: refresh
+    if: needs.refresh.outputs.changed == 'true'
+    uses: ./.github/workflows/deploy.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

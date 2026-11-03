@@ -25,6 +25,10 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from html import unescape
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+# The app's dining day is wall-clock time at UMass, not wherever this runs.
+CAMPUS_TZ = ZoneInfo("America/New_York")
 
 APP = Path(__file__).resolve().parent.parent / "gq-app"
 MENU = APP / "menu.json"
@@ -81,7 +85,7 @@ def main():
     # Anchor on the app's dining day, not the calendar day: index.html rolls
     # over at 4am (questNow), so between midnight and 4am the current dining
     # day is still yesterday and the window has to start there.
-    today = (datetime.now() - timedelta(hours=4)).date()
+    today = (datetime.now(CAMPUS_TZ) - timedelta(hours=4)).date()
     dates = [(today + timedelta(days=i)).strftime("%m/%d/%Y") for i in range(WINDOW_DAYS)]
     full_mask = (1 << WINDOW_DAYS) - 1
 

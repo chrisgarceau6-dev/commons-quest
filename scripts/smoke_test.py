@@ -9,6 +9,7 @@ import re
 import struct
 import sys
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 APP = Path(__file__).resolve().parent.parent / "gq-app"
 failures = []
@@ -53,7 +54,7 @@ except Exception as exc:  # noqa: BLE001
 # The menu feed is rebuilt nightly; a window that no longer reaches the
 # current dining day is the failure that silently empties every boss.
 # Uses the app's 4am rollover (index.html questNow) so the two agree.
-now = datetime.datetime.now() - datetime.timedelta(hours=4)
+now = datetime.datetime.now(ZoneInfo("America/New_York")) - datetime.timedelta(hours=4)
 today = f"{now.month:02d}/{now.day:02d}/{now.year}"
 if dates:
     if today in dates:

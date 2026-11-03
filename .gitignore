@@ -1,0 +1,13 @@
+# Internal review images and handoff notes — not for publication
+audit/
+HANDOFF.md
+
+# Duplicate of gq-app/index.html, kept locally as the last-published copy
+macro-lookup.html
+
+# Local dev / screenshot scripts
+test_gq.js
+shot_*.js
+
+# OS cruft
+.DS_Store

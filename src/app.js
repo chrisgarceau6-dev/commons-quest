@@ -42,7 +42,7 @@ const PINS={berk:'assets/img/pin_berk.png',berk_h:46,wor:'assets/img/pin_wor.png
 let SPR={},DATA=[],LOCS=[],ST=[],DATES=[],BYK=new Map(),TIDX=-1;
 let DAYS={},CUSTOM=[],GOALS=normGoals(),FAVES=[];
 const HEROES=[["og","Hero 1"],["p2","Hero 2"],["p3","Hero 3"],["p4","Hero 4"],["p5","Hero 5"],["g1","Hero 6"],["g2","Hero 7"],["g3","Hero 8"],["g4","Hero 9"],["g5","Hero 10"],["g6","Hero 11"]];
-const GPRE={bulk:{kcal:3300,protein:170,kmode:"reach"},maintain:{kcal:2800,protein:120,kmode:"near"},cut:{kcal:2200,protein:140,kmode:"near"}};
+const GPRE={bulk:{kcal:3300,protein:150,kmode:"reach"},maintain:{kcal:2800,protein:150,kmode:"near"},cut:{kcal:2200,protein:150,kmode:"near"}};
 let PROFILE={name:"",hero:"og",setup:false,home:"",diet:"any",nope:[],avoid:[]},IS_OWNER=false;
 const HOMES=[["berk","Berkshire"],["wor","Worcester"],["frank","Franklin"],["hamp","Hampshire"]];
 const DIETS=[["any","Anything"],["veg","Vegetarian"],["plant","Plant-based"],["halal","Halal"]];

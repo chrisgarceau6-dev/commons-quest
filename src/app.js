@@ -10,7 +10,25 @@ const menuKey=(d=new Date())=>pad(d.getMonth()+1)+"/"+pad(d.getDate())+"/"+d.get
 const fromId=id=>{const [y,m,d]=id.split("-").map(Number);return new Date(y,m-1,d)};
 const niceDay=id=>fromId(id).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
 const MEALS={B:"Breakfast",L:"Lunch",D:"Dinner",N:"Late Night",G:"Grab 'n Go"};
-const G0={kcal:3400,protein:170,sugar:50,sodium:2300};
+// Tracked stats a person can pin to the top of the home screen (up to 3). "min" = reach it, "max" = stay under it.
+const STATS={
+  protein:{lab:"Protein",u:"g",get:t=>t.p,def:120,dir:"min",bg:"#e3f7ff",fg:"#1d6fa5",bar:"var(--pwr)"},
+  carbs:{lab:"Carbs",u:"g",get:t=>t.c,def:275,dir:"min",bg:"#fff7d6",fg:"#8a6a00",bar:"var(--gold)"},
+  fat:{lab:"Fat",u:"g",get:t=>t.f,def:78,dir:"max",bg:"#ffe9e0",fg:"#b23c17",bar:"#ff8a5c"},
+  fiber:{lab:"Fiber",u:"g",get:t=>t.fi,def:28,dir:"min",bg:"#e4f8e4",fg:"#1f7a33",bar:"var(--green)"},
+  sugar:{lab:"Sugar",u:"g",get:t=>t.su,def:50,dir:"max",bg:"#ffe6f6",fg:"#b0287f",bar:"var(--sug)"},
+  sodium:{lab:"Sodium",u:"mg",get:t=>t.na,def:2300,dir:"max",bg:"#fff0de",fg:"#b5520e",bar:"var(--na)"},
+  satfat:{lab:"Sat fat",u:"g",get:t=>t.sf,def:20,dir:"max",bg:"#f1e9ff",fg:"#6a3fb5",bar:"#a77bff"},
+  chol:{lab:"Cholesterol",u:"mg",get:t=>t.ch,def:300,dir:"max",bg:"#eef1f5",fg:"#4a5568",bar:"#8fa3bf"}
+};
+const DEF_TRACK=[{k:"protein",v:120,dir:"min"},{k:"fiber",v:28,dir:"min"},{k:"sodium",v:2300,dir:"max"}];
+// goals: {kcal, kmode:"reach"|"near", track:[{k,v,dir}]}. Also upgrades the old {kcal,protein,sugar,sodium} shape.
+function normGoals(g){g=g||{};const out={kcal:+g.kcal||2400,kmode:g.kmode==="near"?"near":"reach"};
+  if(Array.isArray(g.track))out.track=g.track.filter(x=>x&&STATS[x.k]).slice(0,3).map(x=>({k:x.k,v:+x.v||STATS[x.k].def,dir:x.dir==="max"?"max":"min"}));
+  else if(g.protein!=null)out.track=[{k:"protein",v:+g.protein,dir:"min"},{k:"sugar",v:+g.sugar||50,dir:"max"},{k:"sodium",v:+g.sodium||2300,dir:"max"}];
+  else out.track=DEF_TRACK.map(x=>({...x}));
+  return out}
+const trackOf=k=>GOALS.track.find(x=>x.k===k);
 const CC_NAMES=["Harvest Market","Deli Delish","Green Fields","The Grill","Star Ginger","Tamales","Tavola","Yum! Bakery","Wasabi","People's Organic Coffee"];
 const HALLS={
   berk:{name:"Berkshire",boss:"Berkshire Bear",locs:[3],spr:"bear",x:92,y:452,side:"r"},
@@ -22,9 +40,9 @@ const HALLS={
 const SHEETS={berk:{src:'assets/img/bear.png',fw:84,fh:84},wor:{src:'assets/img/wyrm.png',fw:82,fh:72},frank:{src:'assets/img/frank.png',fw:76,fh:84},hamp:{src:'assets/img/hog.png',fw:84,fh:84},cc:{src:'assets/img/wall.png',fw:84,fh:84}};
 const PINS={berk:'assets/img/pin_berk.png',berk_h:46,wor:'assets/img/pin_wor.png',wor_h:46,frank:'assets/img/pin_frank.png',frank_h:46,hamp:'assets/img/pin_hamp.png',hamp_h:46,cc:'assets/img/pin_cc.png',cc_h:46};
 let SPR={},DATA=[],LOCS=[],ST=[],DATES=[],BYK=new Map(),TIDX=-1;
-let DAYS={},CUSTOM=[],GOALS={...G0},FAVES=[];
+let DAYS={},CUSTOM=[],GOALS=normGoals(),FAVES=[];
 const HEROES=[["og","Hero 1"],["p2","Hero 2"],["p3","Hero 3"],["p4","Hero 4"],["p5","Hero 5"],["g1","Hero 6"],["g2","Hero 7"],["g3","Hero 8"],["g4","Hero 9"],["g5","Hero 10"],["g6","Hero 11"]];
-const GPRE={bulk:{kcal:3200,protein:160},maintain:{kcal:2400,protein:120},cut:{kcal:1900,protein:140}};
+const GPRE={bulk:{kcal:3400,protein:170,kmode:"reach"},maintain:{kcal:2400,protein:120,kmode:"near"},cut:{kcal:1900,protein:140,kmode:"near"}};
 let PROFILE={name:"",hero:"og",setup:false,home:"",diet:"any",nope:[],avoid:[]},IS_OWNER=false;
 const HOMES=[["berk","Berkshire"],["wor","Worcester"],["frank","Franklin"],["hamp","Hampshire"]];
 const DIETS=[["any","Anything"],["veg","Vegetarian"],["plant","Plant-based"],["halal","Halal"]];
@@ -70,10 +88,16 @@ const fromRow=r=>({k:r._k,n:r[0],s:r[1],v:[r[2]||0,r[3]||0,r[4]||0,r[5]||0],x:X(
 const ckey=c=>"mine|"+c.n.toLowerCase()+"|"+String(c.s||"1 serving").toLowerCase();
 const fromCustom=c=>({k:ckey(c),n:c.n,s:c.s||"1 serving",v:[+c.k||0,+c.p||0,+c.c||0,+c.f||0],x:[c.fi??null,c.su??null,c.sf??null,null,null,c.na??null]});
 function lookup(k){if(k.startsWith("mine|")){const c=CUSTOM.find(c=>ckey(c)===k);return c?fromCustom(c):null}const r=BYK.get(k);return r?fromRow(r):null}
-function totals(items){const t={k:0,p:0,c:0,f:0,fi:0,su:0,sf:0,na:0,n:0};for(const e of items||[]){const q=e.q||1;t.k+=e.v[0]*q;t.p+=e.v[1]*q;t.c+=e.v[2]*q;t.f+=e.v[3]*q;const x=e.x||[];t.fi+=(x[0]||0)*q;t.su+=(x[1]||0)*q;t.sf+=(x[2]||0)*q;t.na+=(x[5]||0)*q;t.n++}return t}
-function checks(t){return{cal:t.k>=GOALS.kcal,pro:t.p>=GOALS.protein,sug:t.su<=GOALS.sugar,na:t.na<=GOALS.sodium}}
-function grade(items){if(!items||!items.length)return"empty";const c=checks(totals(items));if(!c.cal)return"none";const n=[c.pro,c.sug,c.na].filter(Boolean).length;return n===3?"legend":n===2?"rare":n===1?"unc":"none"}
-function dayXP(items){if(!items||!items.length)return 0;const c=checks(totals(items));return(c.cal?100:0)+(c.pro?50:0)+(c.sug?25:0)+(c.na?25:0)+(grade(items)==="legend"?100:0)}
+function totals(items){const t={k:0,p:0,c:0,f:0,fi:0,su:0,sf:0,na:0,ch:0,n:0};for(const e of items||[]){const q=e.q||1;t.k+=e.v[0]*q;t.p+=e.v[1]*q;t.c+=e.v[2]*q;t.f+=e.v[3]*q;const x=e.x||[];t.fi+=(x[0]||0)*q;t.su+=(x[1]||0)*q;t.sf+=(x[2]||0)*q;t.na+=(x[5]||0)*q;t.ch+=(x[4]||0)*q;t.n++}return t}
+// "reach": beat the boss by eating at least the calorie goal. "near": land within 10% of it (cut / maintain).
+function checks(t){const near=GOALS.kmode==="near";const cal=near?t.k>=GOALS.kcal*0.9:t.k>=GOALS.kcal;const over=near&&t.k>GOALS.kcal*1.1;
+  const tr=GOALS.track.map(g=>{const val=STATS[g.k].get(t);return{...g,val,ok:g.dir==="min"?val>=g.v:val<=g.v}});
+  return{cal,over,tr}}
+const stars=c=>{const all=[...c.tr.map(x=>x.ok),...(c.over?[false]:[])];return{n:all.filter(Boolean).length,L:all.length}};
+const statName=x=>x.dir==="max"?STATS[x.k].lab.toLowerCase()+" cap":STATS[x.k].lab.toLowerCase();
+const statNum=(k,v)=>STATS[k].u==="mg"&&v>=1000?(v/1000).toFixed(1)+"k":fmt(v);
+function grade(items){if(!items||!items.length)return"empty";const c=checks(totals(items));if(!c.cal)return"none";const{n,L}=stars(c);return n===L?"legend":n===L-1&&n>0?"rare":n>0?"unc":"none"}
+function dayXP(items){if(!items||!items.length)return 0;const c=checks(totals(items));const{n,L}=stars(c);return(c.cal?100:0)+(L?Math.round(100*n/L):0)+(grade(items)==="legend"?100:0)}
 const curDay=()=>S.logDay||dayId();
 const dayItems=id=>(DAYS[id]&&DAYS[id].items)||[];
 
@@ -85,11 +109,11 @@ const isBig=r=>(r[2]||0)>=150&&(r[2]||0)<=1400&&!/sauce|dressing|topping|broth|c
 function comboFor(hk,meal){
   const t=totals(dayItems(curDay()));const rem=GOALS.kcal-t.k;
   let rows=hallRows(hk).filter(r=>HALLS[hk].retail||!meal||r[7].includes(meal)||r[7].includes("G")).filter(isBig).filter(r=>dietOK(r)&&!noped(r)&&!/dessert|ice cream|pastr|bakery/i.test(ST[r[8]]||"")&&!/turnover|cookie|brownie|muffin|donut|doughnut|cake|cupcake|pie\b|danish|croissant|soft serve|sundae/i.test(r[0]));
-  const T=taste(),score=r=>r[2]+Math.min(3,T.get(r[0])||0)*180;
+  const near=GOALS.kmode==="near",T=taste(),score=r=>(near?(r[3]||0)/Math.max(r[2],1)*2000:r[2])+Math.min(3,T.get(r[0])||0)*180;
   const seen=new Set();rows=rows.filter(r=>!seen.has(r[0])&&seen.add(r[0]));
-  if(rem<=0){return{mode:"pwr",items:rows.filter(r=>(r[3]||0)>=12).sort((a,b)=>(b[3]+Math.min(3,T.get(b[0])||0)*8)-(a[3]+Math.min(3,T.get(a[0])||0)*8)).slice(0,3),rem:Math.max(0,GOALS.protein-t.p)}}
+  if(rem<=0){if(near||!trackOf("protein"))return{mode:"done",items:[],rem:0};return{mode:"pwr",items:rows.filter(r=>(r[3]||0)>=12).sort((a,b)=>(b[3]+Math.min(3,T.get(b[0])||0)*8)-(a[3]+Math.min(3,T.get(a[0])||0)*8)).slice(0,3),rem:Math.max(0,trackOf("protein").v-t.p)}}
   rows.sort((a,b)=>score(b)-score(a));const pick=[];let left=rem;
-  for(const r of rows){if(left<=0||pick.length>=5)break;pick.push(r);left-=r[2]}
+  for(const r of rows){if(left<=0||pick.length>=5)break;if(near&&r[2]>left*1.15)continue;pick.push(r);left-=r[2]}
   return{mode:"kcal",items:pick,rem}}
 function worthWalk(hk){const locs=HALLS[hk].locs;const fav=new Set(FAVES);
   const T=taste();const rows=DATA.filter(r=>servedToday(r)&&!r._l.some(i=>locs.includes(i))&&isBig(r)&&(r[2]||0)>=350&&dietOK(r)&&!noped(r));
@@ -98,7 +122,7 @@ function nextServed(k){const base=BYK.get(k);if(!base)return null;let best=null;
   for(const r of DATA){if(r[0]!==base[0])continue;for(let i=Math.max(TIDX,0);i<DATES.length;i++){if((r[10]>>i)&1){if(!best||i<best.i)best={i,r};break}}}
   return best}
 
-function loadLocal(){try{const s=JSON.parse(localStorage.getItem("gq-state")||"null");if(s){DAYS=s.days||{};CUSTOM=s.foods||[];GOALS={...G0,...(s.goals||{})};FAVES=s.faves||[]}}catch(e){}
+function loadLocal(){try{const s=JSON.parse(localStorage.getItem("gq-state")||"null");if(s){DAYS=s.days||{};CUSTOM=s.foods||[];GOALS=normGoals(s.goals);FAVES=s.faves||[]}}catch(e){}
   try{const old=JSON.parse(localStorage.getItem("macro-custom-foods")||"null");if(Array.isArray(old)&&!CUSTOM.length)CUSTOM=old}catch(e){}}
 function saveLocal(){TASTE=null;try{localStorage.setItem("gq-state",JSON.stringify({days:DAYS,foods:CUSTOM,goals:GOALS,faves:FAVES}))}catch(e){}}
 function persistDay(id){saveLocal();pushDoc("days/"+id,{day:id,items:dayItems(id),celebrated:!!(DAYS[id]&&DAYS[id].celebrated)})}
@@ -130,9 +154,9 @@ function campusLife(){const P=(x,y)=>`left:${(x/368*100).toFixed(2)}%;top:${(y/4
 function isNight(){const h=new Date().getHours()+new Date().getMinutes()/60;return h>=18.5||h<6.25}
 function renderMap(){
   const id=dayId(),items=dayItems(id),t=totals(items),c=checks(t),g=grade(items),pct=Math.min(100,t.k/GOALS.kcal*100);
-  const pips=Math.min(10,Math.floor(t.p/GOALS.protein*10));
-  const miss=[!c.pro&&"protein",!c.sug&&"sugar cap",!c.na&&"sodium cap"].filter(Boolean).join(", ");
-  const lootTxt=!t.n?"Eat something to start today's quest.":!c.cal?`${fmt(GOALS.kcal-t.k)} DMG left to beat the boss. Loot needs calories first.`:g==="legend"?"LEGENDARY secured. Stay under your sugar and sodium caps.":`Boss down: <b>${g==="rare"?"RARE":g==="unc"?"UNCOMMON":"no"}</b> loot so far. Missing: ${miss}.`;
+  const miss=[...c.tr.filter(x=>!x.ok).map(statName),...(c.over?["calories within 10% of goal"]:[])].join(", ");
+  const capsTxt=c.tr.some(x=>x.dir==="max")?" Stay under your caps.":"";
+  const lootTxt=!t.n?"Eat something to start today's quest.":!c.cal?(GOALS.kmode==="near"?`${fmt(GOALS.kcal-t.k)} DMG left to reach your target.`:`${fmt(GOALS.kcal-t.k)} DMG left to beat the boss.`)+(c.tr.length?" Loot needs calories first.":""):g==="legend"?"LEGENDARY secured."+capsTxt:`Boss down: <b>${g==="rare"?"RARE":g==="unc"?"UNCOMMON":"no"}</b> loot so far. Missing: ${miss}.`;
   const meal=curMeal();
   const pins=Object.entries(HALLS).map(([k,h])=>{const rows=hallRows(k);const on=openNow(k);const open=on?on.open:h.retail?rows.length>0:rows.some(r=>r[7].includes(meal));
     const status=on?on.txt:!rows.length?"No menu":open?(h.retail?"Open today":MEALS[meal]):"No "+MEALS[meal].toLowerCase();
@@ -140,6 +164,7 @@ function renderMap(){
   const HH=homeHall(),cb=comboFor(HH,meal),ww=worthWalk(HH),usual=usuals();
   const faves=FAVES.map(k=>({k,ns:nextServed(k)})).filter(f=>f.ns).sort((a,b)=>a.ns.i-b.ns.i).slice(0,4);
   $("#view").innerHTML=`
+  ${PROFILE.demo?`<div class="banner2" style="background:var(--gold)"><span>Demo mode · sample data</span><button class="btn b-cream" style="padding:4px 8px;font-size:13px" data-act="enddemo">Make it mine</button></div>`:""}
   ${S.logDay&&S.logDay!==id?logBanner():""}
   <section class="panel quest">
     <div style="display:flex;justify-content:space-between;align-items:center"><span class="arc" style="font-size:10px;color:var(--red)">DAILY QUEST</span><span style="font-weight:600;font-size:14px;color:var(--dim)">${niceDay(id)}</span></div>
@@ -147,11 +172,7 @@ function renderMap(){
     <div class="road"><div class="track"><i style="width:${pct}%"></i></div>
       <div class="walker" style="left:${Math.max(6,Math.min(88,pct))}%"><div class="herospr walk" style="--s:1.2;position:static"></div></div>
       <div class="chest">${spr("chest",3.6,"Loot chest")}</div></div>
-    <div class="stats3">
-      <div class="stat" style="background:#e3f7ff"><span class="lab" style="color:#1d6fa5">POWER</span><b>${fmt(t.p)}<small>/${GOALS.protein}g</small></b><div class="pips">${Array.from({length:10},(_,i)=>`<span class="${i<pips?"on":""}"></span>`).join("")}</div></div>
-      <div class="stat" style="background:#ffe6f6"><span class="lab" style="color:#b0287f">SUGAR</span><b>${fmt(t.su)}<small>/${GOALS.sugar}g</small></b><div class="meter"><i style="width:${Math.min(100,t.su/GOALS.sugar*100)}%;background:${t.su>GOALS.sugar?"var(--red)":"var(--sug)"}"></i></div></div>
-      <div class="stat" style="background:#fff0de"><span class="lab" style="color:#b5520e">SODIUM mg</span><b>${t.na>=1000?(t.na/1000).toFixed(1)+"k":fmt(t.na)}<small>/${(GOALS.sodium/1000).toFixed(1)}k</small></b><div class="meter"><i style="width:${Math.min(100,t.na/GOALS.sodium*100)}%;background:${t.na>GOALS.sodium?"var(--red)":"var(--na)"}"></i></div></div>
-    </div>
+    ${statTiles(c)}
     <div class="loot"><span class="tag">LOOT</span><span>${lootTxt}</span></div>
     <form class="quick" id="qlform" autocomplete="off"><input id="qlin" type="text" enterkeyhint="go" placeholder="Type what you ate… “2 slices pepperoni pizza at berk”" aria-label="Type what you ate"><button class="btn b-green" type="submit" aria-label="Find it">GO</button></form>
   </section>
@@ -171,7 +192,7 @@ function usuals(){const T=taste();const top=[...T].filter(([n,c])=>c>=2).sort((a
     let best=null;for(const x of DATA){if(x[0]!==n)continue;for(let i=Math.max(TIDX,0);i<DATES.length;i++)if((x[10]>>i)&1){if(!best||i<best.i)best={i,x};break}}
     return{n,c,k:best?null:null,today:false,when:best?DATES[best.i].slice(0,5):"—",where:best?best.x._l.map(i=>LOCS[i]).join(", "):"Not on the next two weeks of menus"}})}
 function restoreFrom(txt){try{const b=JSON.parse(txt);if(!["commons-quest","gainz-quest"].includes(b.app))throw 0;
-    DAYS={...DAYS,...(b.days||{})};CUSTOM=b.foods||CUSTOM;GOALS={...G0,...(b.goals||GOALS)};FAVES=b.faves||FAVES;PROFILE={...PROFILE,...(b.profile||{}),setup:true};
+    DAYS={...DAYS,...(b.days||{})};CUSTOM=b.foods||CUSTOM;GOALS=normGoals(b.goals||GOALS);FAVES=b.faves||FAVES;PROFILE={...PROFILE,...(b.profile||{}),setup:true};
     saveLocal();saveProfile();applyHero();$("#overlay").innerHTML="";render();toast(`Restored ${Object.keys(b.days||{}).length} days`)}catch(e){toast("That file isn't a Commons Quest backup")}}
 // ---------- quick log: type what you ate ----------
 let QL={text:"",items:[],unmatched:[]};
@@ -199,6 +220,10 @@ function todayLog(id,items,t){
     <div class="mac4"><div style="background:#ffe0e3"><b>${fmt(t.k)}</b><span style="color:var(--red)">KCAL</span></div><div style="background:#e3f7ff"><b>${fmt(t.p)}g</b><span style="color:#1d6fa5">PROTEIN</span></div><div style="background:#fff"><b>${fmt(t.c)}g</b><span>CARBS</span></div><div style="background:#fff"><b>${fmt(t.f)}g</b><span>FAT</span></div></div>
     <div style="font-weight:700;font-size:14px;color:#5b4a7a">Sugar ${fmt(t.su)}g · Sodium ${fmt(t.na)}mg · Fiber ${fmt(t.fi)}g · Sat fat ${fmt(t.sf)}g</div></div>`
    :`<p style="padding:14px;margin:0;color:var(--dim);font-weight:700">Nothing logged yet today.</p>`}</div>`}
+function statTiles(c){if(!c.tr.length)return"";
+  return `<div class="stats3" style="grid-template-columns:repeat(${c.tr.length},minmax(0,1fr))">${c.tr.map(x=>{const s=STATS[x.k],pct=Math.min(100,x.val/x.v*100),bad=x.dir==="max"&&x.val>x.v;
+    return `<div class="stat" style="background:${s.bg}"><span class="lab" style="color:${s.fg}">${s.lab.toUpperCase()}${s.u==="mg"?" mg":""} ${x.dir==="min"?"≥":"≤"}</span><b>${statNum(x.k,x.val)}<small>/${statNum(x.k,x.v)}${s.u==="g"?"g":""}</small></b><div class="meter"><i style="width:${pct}%;background:${bad?"var(--red)":s.bar}"></i></div></div>`}).join("")}</div>`}
+function checkChips(c,t){return `<span class="${c.cal&&!c.over?"ok":""}">${c.cal&&!c.over?"✓":"✗"} ${fmt(t.k)} / ${fmt(GOALS.kcal)} DMG</span>${c.tr.map(x=>`<span class="${x.ok?"ok":""}">${x.ok?"✓":"✗"} ${statNum(x.k,x.val)}${STATS[x.k].u} ${STATS[x.k].lab.toLowerCase()}</span>`).join("")}`}
 function comboHTML(cb,hk,ww){
   const sum=cb.items.reduce((a,r)=>({k:a.k+r[2],p:a.p+(r[3]||0),na:a.na+(r[16]||0)}),{k:0,p:0,na:0});
   return `<div class="combo"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="arc" style="font-size:10px">${cb.mode==="kcal"?"KO COMBO":"POWER TOP-UP"}</span><span style="font-weight:700;font-size:13px;text-align:right">${cb.mode==="kcal"?"biggest hits at "+esc(HALLS[hk].name):"boss is down, chase protein"}</span></div>
@@ -234,7 +259,7 @@ function renderBattle(){
   <div class="fight" id="fight"></div><div style="height:8px"></div>`;
   renderHallList();renderFightBar()}
 function itemRow(r,loc){const k=r._k,fav=FAVES.includes(k);const na=r[16]||0,su=r[12]||0;
-  return `<div class="row"><span class="nm">${esc(r[0])}${na>=GOALS.sodium*0.5?`<span class="warn">high salt</span>`:""}${su>=GOALS.sugar*0.6?`<span class="warn sug">high sugar</span>`:""}${allergenHits(r).length?`<span class="warn alg">contains ${esc(allergenHits(r).map(c=>ALG_NAME[c].toLowerCase()).join(", "))}</span>`:""}</span>
+  return `<div class="row"><span class="nm">${esc(r[0])}${na>=1150?`<span class="warn">high salt</span>`:""}${su>=30?`<span class="warn sug">high sugar</span>`:""}${allergenHits(r).length?`<span class="warn alg">contains ${esc(allergenHits(r).map(c=>ALG_NAME[c].toLowerCase()).join(", "))}</span>`:""}</span>
    <button class="btn fav${fav?" on":""}" data-act="fav" data-k="${esc(k)}" aria-pressed="${fav}" aria-label="Favorite ${esc(r[0])}">FAV</button>
    <button class="btn b-green eat" data-act="eat" data-k="${esc(k)}" aria-label="Eat ${esc(r[0])}">+</button>
    <span class="mt">${esc(r[1])}${loc?" · "+esc(loc):""} · <span class="d">${fmt(r[2])} DMG</span> · <span class="pw">${fmt(r[3])} PWR</span></span></div>`}
@@ -280,14 +305,14 @@ function koFx(boss){const stage=$("#stage");sfx("sfx_ko",.9);
     const ray=document.createElement("div");ray.className="burst";ray.style.left=cx+"px";ray.style.top=cy+"px";stage.insertBefore(ray,stage.firstChild);setTimeout(()=>ray.remove(),1700);
     const cols=["#ffcc3d","#ff4f5e","#fff","#3ec7ff","#5be36b","#c46bff"];
     for(let i=0;i<34;i++){const p=document.createElement("div");p.className="part"+(i%3===0?" star":"");const a=Math.random()*Math.PI*2,d=40+Math.random()*110;p.style.left=cx+"px";p.style.top=cy+"px";p.style.background=i%3===0?"":cols[i%cols.length];p.style.color=cols[i%cols.length];p.style.setProperty("--dx",Math.cos(a)*d+"px");p.style.setProperty("--dy",Math.sin(a)*d-30+"px");p.style.animationDuration="1.1s";stage.appendChild(p);setTimeout(()=>p.remove(),1150)}}catch(e){}
-  if($("#say"))$("#say").innerHTML="<b>K.O.!</b> Calorie goal hit. Stack protein and stay under your caps for better loot.";buzz()}
+  if($("#say"))$("#say").innerHTML="<b>K.O.!</b> Calorie goal hit. Hit your other goals for better loot.";buzz()}
 function maybeVictory(){const id=curDay(),d=DAYS[id];if(!d||d.celebrated||grade(d.items)!=="legend")return;d.celebrated=true;persistDay(id);
   const t=totals(d.items);jingle();
   $("#overlay").innerHTML=`<div class="victory" role="dialog" aria-label="Legendary day"><div class="rays"></div>
    <div style="position:relative;text-align:center" class="arc"><div style="font-size:26px;line-height:1.3;color:var(--gold);text-shadow:4px 4px 0 var(--ink)">LEGENDARY<br>DAY!</div></div>
    <div style="position:relative">${spr("chest",14,"Legendary loot chest")}</div>
    <div class="panel" style="position:relative;width:100%;max-width:400px;padding:12px"><div class="checks">
-     <span class="ok">✓ ${fmt(t.k)} DMG</span><span class="ok">✓ ${fmt(t.p)}g PWR</span><span class="ok">✓ ${fmt(t.su)}g sugar</span><span class="ok">✓ ${fmt(t.na)}mg Na</span></div>
+     ${checkChips(checks(t),t)}</div>
      <p style="margin:10px 0 0;font-weight:700;text-align:center">+${dayXP(d.items)} XP · +1 crown</p></div>
    <button class="btn b-red arc" style="position:relative;font-size:13px;padding:16px 26px" data-act="closevictory">CLAIM LOOT</button></div>`}
 
@@ -342,21 +367,23 @@ function renderTrophies(){
    <div class="stats"><div class="panel"><b style="color:#c99300">${leg}</b><span>Legendary</span></div><div class="panel"><b style="color:#1f9a3a">${beaten}</b><span>Bosses beaten</span></div><div class="panel"><b style="color:#e0640f">${best}</b><span>Best streak</span></div></div>
    <section class="cal"><div class="calhd"><button class="btn b-cream" data-act="month" data-dir="-1" aria-label="Previous month">◀</button><span class="arc" style="font-size:12px">${m.toLocaleDateString(undefined,{month:"short",year:"numeric"}).toUpperCase()}</span><button class="btn b-cream" data-act="month" data-dir="1" aria-label="Next month">▶</button></div>
     <div class="dow"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div><div class="grid7">${tiles}</div></section>
-   <div class="legendkey"><div><span class="tile legend"></span>Legendary · all 4</div><div><span class="tile rare"></span>Rare · calories + 2</div><div><span class="tile unc"></span>Uncommon · calories + 1</div><div><span class="tile none"></span>Boss escaped</div></div>
+   <div class="legendkey"><div><span class="tile legend"></span>Legendary · every goal</div><div><span class="tile rare"></span>Rare · all but one</div><div><span class="tile unc"></span>Uncommon · calories + 1</div><div><span class="tile none"></span>Boss escaped</div></div>
    <p class="hint" style="margin-top:12px">Tap a day to see or fix its log.</p>`}
 function openDay(id){S.dayOpen=id;const items=dayItems(id),t=totals(items),c=checks(t),g=grade(items);
   $("#overlay").innerHTML=`<div class="sheet" data-act="closesheet"><div class="in panel" style="border-radius:14px 14px 0 0" data-stop="1" role="dialog" aria-label="${niceDay(id)}">
    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font-size:19px">${niceDay(id)}</b><span style="font-weight:700;color:var(--dim)">${({legend:"LEGENDARY",rare:"RARE",unc:"UNCOMMON",none:"BOSS ESCAPED",empty:"NOTHING LOGGED"})[g]}</span></div>
-   <div class="checks" style="margin-top:10px"><span class="${c.cal?"ok":""}">${c.cal?"✓":"✗"} ${fmt(t.k)} / ${fmt(GOALS.kcal)} DMG</span><span class="${c.pro?"ok":""}">${c.pro?"✓":"✗"} ${fmt(t.p)} / ${GOALS.protein}g PWR</span><span class="${c.sug?"ok":""}">${c.sug?"✓":"✗"} ${fmt(t.su)}g sugar</span><span class="${c.na?"ok":""}">${c.na?"✓":"✗"} ${fmt(t.na)}mg Na</span></div>
+   <div class="checks" style="margin-top:10px">${checkChips(c,t)}</div>
    <div style="margin-top:12px;border:3px solid var(--ink);border-radius:8px;overflow:hidden;background:#fff">${items.length?items.map(e=>`<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><span class="nm">${esc(e.n)}</span><span class="step" style="grid-row:span 2"><button class="btn b-cream" data-act="qty" data-d="${id}" data-k="${esc(e.k)}" data-dq="-0.5" aria-label="Less ${esc(e.n)}">−</button><b>${e.q}×</b><button class="btn b-cream" data-act="qty" data-d="${id}" data-k="${esc(e.k)}" data-dq="0.5" aria-label="More ${esc(e.n)}">+</button></span><span class="mt">${esc(e.s)} · <span class="d">${fmt(e.v[0]*e.q)} DMG</span> · <span class="pw">${f1(e.v[1]*e.q)} PWR</span></span></div>`).join(""):`<p style="padding:12px;margin:0;font-weight:600;color:var(--dim)">Nothing logged.</p>`}</div>
    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><button class="btn b-gold" style="padding:10px" data-act="logto" data-d="${id}">Add food to this day</button><button class="btn b-cream" style="padding:10px" data-act="closesheet">Close</button></div></div></div>`}
 function openGoals(first){
   let had=false;try{had=!!(JSON.parse(localStorage.getItem("gq-state")||"null")||{}).goals}catch(e){}
   const cur=PROFILE.hero,gk=first&&!IS_OWNER&&!had?null:GOALS;
-  const preset=gk?(Object.keys(GPRE).find(k=>GPRE[k].kcal===gk.kcal&&GPRE[k].protein===gk.protein)||"custom"):"maintain";
-  const g=gk||{...G0,...GPRE.maintain};
+  const g=gk?normGoals(gk):normGoals({kcal:GPRE.maintain.kcal,kmode:GPRE.maintain.kmode,track:DEF_TRACK.map(x=>x.k==="protein"?{...x,v:GPRE.maintain.protein}:x)});
+  const gp=(g.track.find(x=>x.k==="protein")||{}).v;
+  const preset=Object.keys(GPRE).find(k=>GPRE[k].kcal===g.kcal&&GPRE[k].kmode===g.kmode&&(gp==null||GPRE[k].protein===gp))||(gk?"custom":"maintain");
   $("#overlay").innerHTML=`<div class="sheet" ${first?"":'data-act="closesheet"'}><form class="in panel form" style="border-radius:14px 14px 0 0" data-stop="1" id="goalf" aria-label="${first?"Set up your hero":"Settings"}" data-first="${first?1:0}">
   <b class="w4 arc" style="font-size:13px;line-height:1.5">${first?"CHOOSE YOUR HERO":"SETTINGS"}</b>
+  ${first?`<button type="button" class="w4 btn b-purple" style="padding:10px;font-size:14px" data-act="demo">Just looking? Skip setup and try the demo →</button>`:""}
   <div class="w4 chars" role="group" aria-label="Character">${HEROES.map(([id,lab])=>`<button type="button" data-act="pickhero" data-h="${id}" aria-pressed="${id===cur}" aria-label="${lab}"><span class="face" style="background-image:url(assets/img/hero_${id}.png)"></span></button>`).join("")}</div>
   <label class="w4">Your name<input id="g-name" maxlength="12" autocomplete="nickname" value="${esc(PROFILE.name||"")}" placeholder="Player"></label>
   <span class="w4" style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase">Usual dining hall</span>
@@ -368,13 +395,34 @@ function openGoals(first){
   <p class="w4 setupnote">Allergen info comes from UMass Dining's labels. Recipes can change, so always confirm with dining staff.</p>
   <span class="w4" style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase">Daily goal</span>
   <div class="w4 goalpick" role="group" aria-label="Goal preset">${[["bulk","Bulk"],["maintain","Maintain"],["cut","Cut"],["custom","Custom"]].map(([k,l])=>`<button type="button" class="btn ${k===preset?"b-gold":"b-cream"}" data-act="gpre" data-g="${k}" aria-pressed="${k===preset}">${l}${GPRE[k]?`<small>${fmt(GPRE[k].kcal)} cal</small>`:"<small>your own</small>"}</button>`).join("")}</div>
-  <label class="w2">Calories (at least)<input id="g-k" inputmode="numeric" value="${g.kcal}"></label><label class="w2">Protein g (at least)<input id="g-p" inputmode="numeric" value="${g.protein}"></label>
-  <label class="w2">Sugar g (at most)<input id="g-su" inputmode="numeric" value="${g.sugar??G0.sugar}"></label><label class="w2">Sodium mg (at most)<input id="g-na" inputmode="numeric" value="${g.sodium??G0.sodium}"></label>
-  <p class="w4 setupnote">Not sure what to pick? Maintain is a common starting point. A doctor or dietitian can give you numbers made for you.</p>
+  <label class="w2">Calories<input id="g-k" inputmode="numeric" value="${g.kcal}"></label>
+  <div class="w2 kmode" role="group" aria-label="Calorie goal type" data-v="${g.kmode}" style="display:flex;flex-direction:column;gap:3px"><span style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase">Beat the boss by</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${[["reach","Reaching it"],["near","Landing near"]].map(([k,l])=>`<button type="button" class="btn ${k===g.kmode?"b-gold":"b-cream"}" style="padding:7px 2px;font-size:12px" data-act="kmode" data-v="${k}" aria-pressed="${k===g.kmode}">${l}</button>`).join("")}</div></div>
+  <span class="w4" style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase">Track at the top · pick up to 3</span>
+  <div class="w4 trackpick" style="display:flex;flex-direction:column;gap:6px">${Object.entries(STATS).map(([k,st])=>{const on=g.track.find(x=>x.k===k),dir=on?on.dir:st.dir;
+    return `<div class="trow" data-k="${k}" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto;gap:6px;align-items:center"><button type="button" class="chip2 trk${on?" on":""}" data-act="togtrack" aria-pressed="${!!on}">${st.lab}</button><input class="tv" inputmode="numeric" aria-label="${st.lab} goal in ${st.u}" value="${on?on.v:st.def}" ${on?"":"disabled"} style="padding:6px"><button type="button" class="btn b-cream tdir" style="padding:6px 6px;font-size:12px;min-width:84px" data-act="togdir" data-v="${dir}" ${on?"":"disabled"}>${dir==="min"?"≥ at least":"≤ at most"} ${st.u}</button></div>`}).join("")}</div>  <p class="w4 setupnote">"Landing near" means within 10% of your calories, a good fit for cutting or maintaining. Not sure what to pick? Maintain is a common starting point. A doctor or dietitian can give you numbers made for you.</p>
   <span class="w4" id="g-err" style="color:var(--red);font-weight:700;font-size:13px" role="alert"></span>
   <div class="w4" style="display:flex;gap:8px;justify-content:flex-end">${first?"":`<button type="button" class="btn b-cream" style="padding:8px 12px" data-act="closesheet">Cancel</button>`}<button type="submit" class="btn b-gold" style="padding:10px 14px">${first?"START QUEST":"Save"}</button></div>
   ${first?"":`<div class="w4" style="display:flex;gap:8px"><button type="button" class="btn b-cream" style="flex:1;padding:8px" data-act="backup">Back up my data</button><button type="button" class="btn b-cream" style="flex:1;padding:8px" data-act="restore">Restore backup</button></div>`}
   <p class="w4 setupnote">Your food log stays on this device. Commons Quest is a student project and isn't affiliated with UMass Amherst.</p></form></div>`}
+function setKmode(v){const box=$(".kmode");if(!box)return;box.dataset.v=v;box.querySelectorAll("button").forEach(b=>{const on=b.dataset.v===v;b.setAttribute("aria-pressed",String(on));b.className="btn "+(on?"b-gold":"b-cream")})}
+function toggleTrack(row,force){const b=row.querySelector(".trk"),on=force??!b.classList.contains("on");
+  if(on&&document.querySelectorAll(".trow .trk.on").length>=3){toast("Pick up to 3. Turn one off first.");return}
+  b.classList.toggle("on",on);b.setAttribute("aria-pressed",String(on));row.querySelector(".tv").disabled=!on;row.querySelector(".tdir").disabled=!on}
+// Demo: a ready-made profile and two weeks of sample days from the real menus, so a visitor can look around without setting up.
+function startDemo(){if(!DATA.length){toast("Menus are still loading…");return}
+  PROFILE={...PROFILE,name:"DEMO",hero:"og",setup:true,demo:true,home:"berk",diet:"any",avoid:[],nope:[]};
+  GOALS=normGoals({kcal:2600,kmode:"reach",track:[{k:"protein",v:130,dir:"min"},{k:"fiber",v:20,dir:"min"},{k:"sugar",v:50,dir:"max"}]});
+  const pool=DATA.filter(r=>isBig(r)&&r._l.some(i=>HALLS.berk.locs.includes(i)||HALLS.wor.locs.includes(i))&&!/dessert|bakery/i.test(ST[r[8]]||""));
+  let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  DAYS={};const reach=[1.05,.7,1.1,.95,1.2,1.0,.5,1.1,1.15,.85,1.05,1.1,.9];
+  for(let i=13;i>=1;i--){const id=dayId(new Date(Date.now()-4*3600e3-i*864e5)),items=[];let k=0;const target=GOALS.kcal*reach[i-1];
+    let tries=0;const big=pool.filter(r=>r[2]>=300&&(r[3]||0)>=18&&(r[12]||0)<=20);while(k<target&&items.length<12&&big.length&&tries++<200){const r=big[Math.floor(rnd()*big.length)];if(items.some(e=>e.k===r._k))continue;const x=fromRow(r);items.push({...x,q:1});k+=x.v[0]}
+    DAYS[id]={items,celebrated:true}}
+  const today=pool.filter(r=>(r[3]||0)>=20).slice(0,2).map(r=>({...fromRow(r),q:1}));DAYS[dayId()]={items:today};
+  FAVES=pool.filter(r=>(r[3]||0)>=30).slice(0,2).map(r=>r._k);saveLocal();saveProfile();applyHero();
+  $("#overlay").innerHTML="";S.tab="map";render();toast("Demo mode: sample data. Tap “Make it mine” to start fresh.")}
+function endDemo(){DAYS={};CUSTOM=[];FAVES=[];GOALS=normGoals();try{localStorage.removeItem("gq-state")}catch(e){}
+  PROFILE={name:"",hero:"og",setup:false,demo:false,home:"",diet:"any",nope:[],avoid:[]};saveProfile();applyHero();render();openGoals(true)}
 function render(){renderHUD();
   document.querySelectorAll(".nav button").forEach(b=>{const on=b.dataset.t===(S.tab==="battle"?"map":S.tab);b.setAttribute("aria-pressed",String(on));b.className="btn "+(on?"b-gold":"b-purple")});
   if(!DATA.length)return;
@@ -415,7 +463,12 @@ document.addEventListener("click",ev=>{
   else if(a==="pickhero"){document.querySelectorAll(".chars button").forEach(b=>b.setAttribute("aria-pressed",String(b===el)));el.closest("form").dataset.hero=d.h;
     document.documentElement.style.setProperty("--hero",`url(${asset(`assets/img/hero_${d.h}.png`)})`);sfx("sfx_coin")}
   else if(a==="gpre"){document.querySelectorAll(".goalpick:not(.homepick):not(.dietpick) button").forEach(b=>{const on=b===el;b.setAttribute("aria-pressed",String(on));b.className="btn "+(on?"b-gold":"b-cream")});
-    const p=GPRE[d.g];if(p){$("#g-k").value=p.kcal;$("#g-p").value=p.protein}else $("#g-k").focus()}
+    const p=GPRE[d.g];if(p){$("#g-k").value=p.kcal;setKmode(p.kmode);const pr=document.querySelector('.trow[data-k="protein"]');if(pr){if(!pr.querySelector(".trk").classList.contains("on"))toggleTrack(pr,true);pr.querySelector(".tv").value=p.protein}}else $("#g-k").focus()}
+  else if(a==="kmode"){setKmode(d.v)}
+  else if(a==="togtrack"){toggleTrack(el.closest(".trow"))}
+  else if(a==="togdir"){const v=d.v==="min"?"max":"min";el.dataset.v=v;el.textContent=(v==="min"?"≥ at least ":"≤ at most ")+STATS[el.closest(".trow").dataset.k].u}
+  else if(a==="demo"){startDemo()}
+  else if(a==="enddemo"){endDemo()}
   else if(a==="sound"){toggleSound()}
   else if(a==="togalg"){const on=el.getAttribute("aria-pressed")!=="true";el.setAttribute("aria-pressed",String(on));el.classList.toggle("on",on)}
   else if(a==="quicklog"){openQuickLog()}
@@ -443,13 +496,14 @@ document.addEventListener("submit",ev=>{ev.preventDefault();
     CUSTOM.push({n,s:$("#f-s").value.trim()||"1 serving",k:v("#f-k"),p:v("#f-p")||0,c:v("#f-c")||0,f:v("#f-f")||0,su:v("#f-su"),fi:v("#f-fi"),sf:v("#f-sf"),na:v("#f-na")});
     persistMeta("foods");S.adding=false;S.sel=CUSTOM.length-1;render();toast("Saved to backpack")}
   else if(ev.target.id==="goalf"){const n=id=>{const x=parseFloat($(id).value);return isNaN(x)?null:x};
-    const ng={kcal:n("#g-k"),protein:n("#g-p"),sugar:n("#g-su")??G0.sugar,sodium:n("#g-na")??G0.sodium};
+    const track=[...document.querySelectorAll(".trow")].filter(r=>r.querySelector(".trk").classList.contains("on")).map(r=>({k:r.dataset.k,v:parseFloat(r.querySelector(".tv").value),dir:r.querySelector(".tdir").dataset.v}));
+    const ng={kcal:n("#g-k"),kmode:$(".kmode").dataset.v,track};
     if(ng.kcal==null||ng.kcal<1200||ng.kcal>7000){$("#g-err").textContent="Calories should be between 1,200 and 7,000.";return}
-    if(ng.protein==null||ng.protein<20||ng.protein>400){$("#g-err").textContent="Protein should be between 20 and 400 g.";return}
+    const badT=track.find(x=>!(x.v>0)||x.v>20000);if(badT){$("#g-err").textContent=`Add a number for ${STATS[badT.k].lab.toLowerCase()}.`;return}
     const first=ev.target.dataset.first==="1",h=ev.target.dataset.hero||PROFILE.hero;
     const avoid=[...document.querySelectorAll(".algpick button[aria-pressed=true]")].map(b=>b.dataset.c);
-    PROFILE={...PROFILE,name:$("#g-name").value.trim().slice(0,12),hero:h,setup:true,home:ev.target.dataset.home||PROFILE.home||(IS_OWNER?"berk":""),diet:ev.target.dataset.diet||PROFILE.diet||"any",avoid};saveProfile();applyHero();
-    GOALS=ng;persistMeta("goals");$("#overlay").innerHTML="";render();if(first){sfx("sfx_coin");toast(`Welcome, ${PROFILE.name||"hero"}! Pick a dining hall to fight.`)}else toast("Saved")}});
+    PROFILE={...PROFILE,name:$("#g-name").value.trim().slice(0,12),hero:h,setup:true,demo:false,home:ev.target.dataset.home||PROFILE.home||(IS_OWNER?"berk":""),diet:ev.target.dataset.diet||PROFILE.diet||"any",avoid};saveProfile();applyHero();
+    GOALS=normGoals(ng);persistMeta("goals");$("#overlay").innerHTML="";render();if(first){sfx("sfx_coin");toast(`Welcome, ${PROFILE.name||"hero"}! Pick a dining hall to fight.`)}else toast("Saved")}});
 
 loadLocal();loadProfile();render();
 let setupTimer=setTimeout(()=>{if(!PROFILE.setup)openGoals(true)},1200);
@@ -479,7 +533,7 @@ Promise.all([fetch("data/menu.json").then(r=>r.json()),fetch("data/spr.json").th
     DAYS={...DAYS,...nd};if(server)synced=true;saveLocal();refresh()},()=>{});
   const meta=(name,apply,has)=>db.doc("meta/"+name).onSnapshot(s=>{if(s.exists)apply(clone(s.data()));else if(!s.metadata.fromCache&&has())persistMeta(name);saveLocal();refresh()},()=>{});
   meta("foods",d=>{if(Array.isArray(d.items))CUSTOM=d.items},()=>CUSTOM.length>0);
-  meta("goals",d=>{GOALS={...G0,...d}},()=>false);
+  meta("goals",d=>{GOALS=normGoals(d)},()=>false);
   meta("faves",d=>{if(Array.isArray(d.keys))FAVES=d.keys},()=>FAVES.length>0);
   db.doc("meta/profile").onSnapshot(sn=>{if(sn.exists){PROFILE={...PROFILE,...clone(sn.data())};try{localStorage.setItem("gq-profile",JSON.stringify(PROFILE))}catch(e){}applyHero();
       if(PROFILE.setup&&$("#goalf")&&$("#goalf").dataset.first==="1")$("#overlay").innerHTML="";refresh()}},()=>{});

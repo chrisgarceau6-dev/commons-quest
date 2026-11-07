@@ -64,10 +64,34 @@ for (const t of ["pack", "trophies", "map"]) { await page.click(`.nav [data-t=${
 await page.click("[data-act=goals]"); await page.waitForTimeout(300);
 ok(await page.locator("[data-act=backup]").count() === 1, "settings offers backup and restore");
 
+// --- choose what's tracked at the top
+await page.click("[data-act=gpre][data-g=bulk]");
+ok((await page.inputValue("#g-k")) === "3400", "bulk preset sets 3,400 calories");
+await page.click('.trow[data-k=fiber] [data-act=togtrack]');
+await page.click('.trow[data-k=carbs] [data-act=togtrack]');
+await page.fill('.trow[data-k=carbs] .tv', "300");
+await page.click("#goalf button[type=submit]"); await page.waitForTimeout(400);
+const keys = await page.evaluate(() => GOALS.track.map((x) => x.k).join(","));
+ok(keys.includes("carbs") && !keys.includes("fiber"), "tracked stats are saved (" + keys + ")");
+ok((await page.locator(".stats3 .lab", { hasText: "CARBS" }).count()) === 1, "home screen shows the chosen stat");
+
 // --- data survives a reload
 await page.reload(); await page.waitForTimeout(1500);
 ok(await page.locator("#goalf").count() === 0, "setup does not reappear after reload");
 ok((await page.evaluate(() => DAYS[curDay()].items.length)) >= 2, "log survives a reload");
+
+// --- demo mode: skip setup with sample data, then start fresh
+const demo = await browser.newPage({ viewport: { width: 390, height: 844 } });
+demo.on("pageerror", (e) => errors.push(e.message));
+await demo.goto(url); await demo.waitForTimeout(1800);
+await demo.click("[data-act=demo]"); await demo.waitForTimeout(500);
+ok(await demo.locator("#goalf").count() === 0 && (await demo.locator(".banner2", { hasText: "Demo mode" }).count()) === 1, "demo skips setup and says it's a demo");
+ok((await demo.evaluate(() => Object.keys(DAYS).length)) >= 10, "demo fills in sample days");
+await demo.click(".nav [data-t=trophies]"); await demo.waitForTimeout(300);
+ok((await demo.locator(".tile.legend, .tile.rare, .tile.unc").count()) >= 3, "demo trophy wall has loot");
+await demo.click(".nav [data-t=map]"); await demo.waitForTimeout(300);
+await demo.click("[data-act=enddemo]"); await demo.waitForTimeout(400);
+ok(await demo.locator("#goalf").count() === 1 && (await demo.evaluate(() => Object.keys(DAYS).length)) === 0, "\"Make it mine\" clears the demo and opens setup");
 
 ok(errors.length === 0, "no JavaScript errors" + (errors.length ? ": " + errors.join(" | ") : ""));
 ok(missing.filter((m) => !m.endsWith("favicon.ico")).length === 0, "no missing files" + (missing.length ? ": " + missing.join(", ") : ""));

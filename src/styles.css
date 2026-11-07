@@ -224,3 +224,6 @@ details.stn:not([open])>summary.station{border-bottom:3px solid var(--ink)}
 .algpick{display:flex;flex-wrap:wrap;gap:6px}
 .chip2{border:2px solid var(--ink);border-radius:999px;background:var(--panel);color:#2b1d3a;font:700 13px var(--pix);padding:5px 10px}
 .chip2.on{background:#ff8a8a;color:var(--ink)}
+
+.chip2.trk.on{background:var(--green)}
+.trow .tv:disabled,.trow .tdir:disabled{opacity:.45}

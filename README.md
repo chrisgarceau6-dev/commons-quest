@@ -4,7 +4,7 @@
 
 **A meal planner for UMass Amherst dining that knows your goals, your diet and your allergies, and turns eating well into a game.**
 
-**▶ Live app:** https://chrisgarceau6-dev.github.io/commons-quest/ (best on a phone; add it to your home screen)
+**▶ Live app:** https://chrisgarceau6-dev.github.io/commons-quest/ (best on a phone; tap **"try the demo"** to skip setup and look around with sample data)
 
 UMass has a nationally ranked dining program, and it publishes nutrition and allergen data for every dish. But using that data is slow. You check four dining halls' menus one at a time, and nothing tells you *"what should I eat to hit 160 g of protein today, without nuts, at the hall I'm walking to?"* Generic trackers like MyFitnessPal don't know the dining hall menus, so students give up on logging.
 
@@ -21,7 +21,7 @@ Commons Quest answers that question in a few seconds, and gives you a reason to 
 - **"Next move" suggestions.** A ready-made combo at your hall for the current meal that gets you to your calorie goal, plus one dish that's "worth the walk" to another hall.
 - **It learns you.** Foods you keep logging rank higher, a **Your Usuals** list shows where your go-to dishes are served today, and a ✕ on any suggestion means it never comes back.
 - **Type it, don't search it.** "2 slices pepperoni pizza and a chocolate milk at berk" becomes two logged items with quantities. This runs on the phone with no server and no API cost (see [`src/smartlog.js`](src/smartlog.js)).
-- **A game that rewards consistency, not restriction.** Calories are the boss's HP. Protein, sugar and sodium decide your loot. Streaks and a trophy calendar track the month. Goals can't be set below a safe calorie floor.
+- **A game that rewards consistency, not restriction.** Calories are the boss's HP, and up to three goals you pick (protein, carbs, fat, fiber, sugar, sodium, saturated fat or cholesterol, each as a target or a cap) decide your loot. Bulking? Beat the boss by reaching your calories. Cutting? Win by landing within 10% of them. Streaks and a trophy calendar track the month. Goals can't be set below a safe calorie floor.
 - **A living campus map.** The real campus, traced from the official UMass map's vector data, redrawn as a 3/4-view pixel town. It has day, night and winter versions, a bus on Mass Ave and students walking the paths.
 - **Works like an app.** Installs to the home screen, works offline with the last menus it saw, and backs up or restores your data from a file.
 

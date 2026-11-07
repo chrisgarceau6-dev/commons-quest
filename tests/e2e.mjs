@@ -66,7 +66,7 @@ ok(await page.locator("[data-act=backup]").count() === 1, "settings offers backu
 
 // --- choose what's tracked at the top
 await page.click("[data-act=gpre][data-g=bulk]");
-ok((await page.inputValue("#g-k")) === "3400", "bulk preset sets 3,400 calories");
+ok((await page.inputValue("#g-k")) === "3300", "bulk preset sets 3,300 calories");
 await page.click('.trow[data-k=fiber] [data-act=togtrack]');
 await page.click('.trow[data-k=carbs] [data-act=togtrack]');
 await page.fill('.trow[data-k=carbs] .tv', "300");

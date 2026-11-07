@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Commons Quest — fight your dining hall, hit your macros</title>
+<meta name="description" content="A pixel-art RPG macro tracker for UMass Amherst dining. Every dining hall is a boss; every meal you log is an attack.">
+<meta name="theme-color" content="#1c1440">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
+<link rel="apple-touch-icon" href="assets/img/icon-180.png">
+<link rel="icon" type="image/png" href="assets/img/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Commons Quest">
+<meta property="og:title" content="Commons Quest">
+<meta property="og:description" content="Fight your dining hall. Hit your macros.">
+<meta property="og:image" content="https://chrisgarceau6-dev.github.io/commons-quest/assets/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="hud gut" id="hud"></header>
+  <main class="gut" id="view"><p class="hint" style="margin-top:20px">Loading the campus…</p></main>
+</div>
+<nav class="nav gut" aria-label="Screens"><div class="in">
+  <button class="btn b-gold" data-act="tab" data-t="map" aria-pressed="true">MAP</button>
+  <button class="btn b-purple" data-act="tab" data-t="pack" aria-pressed="false">BACKPACK</button>
+  <button class="btn b-purple" data-act="tab" data-t="trophies" aria-pressed="false">TROPHIES</button>
+</div></nav>
+<div id="overlay"></div>
+<script src="src/smartlog.js"></script>
+<script src="src/app.js"></script>
+</body>
+</html>

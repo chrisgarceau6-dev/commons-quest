@@ -1,0 +1,13 @@
+{
+  "name": "commons-quest",
+  "private": true,
+  "description": "A pixel-art RPG meal planner for UMass Amherst dining.",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node --test tests/smartlog.test.js && node tests/e2e.mjs",
+    "menus": "python3 scripts/scrape_menu.py data/menu.json data/menu.json --hours data/hours.json"
+  },
+  "devDependencies": {
+    "playwright": "1.48.2"
+  }
+}

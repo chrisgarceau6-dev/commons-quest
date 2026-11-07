@@ -1,15 +1,15 @@
 name: Build, test & deploy
 
+# Runs on every push, and every night to pull fresh dining-hall menus.
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 8 * * *"      # 3:17am Eastern (4:17 during daylight time)
   workflow_dispatch:
-  # Called by refresh-menus.yml after it commits a fresh menu.json, because a
-  # push made with GITHUB_TOKEN does not itself trigger this workflow.
-  workflow_call:
 
 permissions:
-  contents: read
+  contents: write   # commit refreshed menus
   pages: write
   id-token: write
 
@@ -18,34 +18,50 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Refresh menus and hours
+        if: github.event_name != 'push'
+        run: |
+          python3 scripts/scrape_menu.py data/menu.json data/menu.json "$(TZ=America/New_York date +%m/%d/%Y)" --hours data/hours.json
+          if ! git diff --quiet -- data/; then
+            git config user.name "commons-quest-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/ && git commit -m "data: menus for $(TZ=America/New_York date +%Y-%m-%d)" && git push
+          fi
 
-      - name: Smoke-test the app bundle
-        run: python scripts/smoke_test.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Unit tests (meal parser)
+        run: node --test tests/smartlog.test.js
+
+      - name: End-to-end test (real app in a headless phone browser)
+        run: |
+          npm install --no-save playwright@1.48.2
+          npx playwright install --with-deps chromium
+          node tests/e2e.mjs
+
+      - name: Package site
+        run: |
+          mkdir _site
+          cp -r index.html manifest.webmanifest sw.js src assets data _site/
+          touch _site/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
 
   deploy:
-    needs: test
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/configure-pages@v5
-
-      - name: Upload gq-app as the site root
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: gq-app
-
-      - name: Deploy to GitHub Pages
-        id: deployment
+      - id: deployment
         uses: actions/deploy-pages@v4
